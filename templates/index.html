@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Family Expense Tracker</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Family Expense Tracker</h1>
+
+    <!-- Add Expense Form -->
+    <form method="POST">
+        <input type="text" name="amount" placeholder="Amount" required>
+        <input type="text" name="category" placeholder="Category" required>
+        <button type="submit">Add Expense</button>
+    </form>
+
+    <!-- Expense List -->
+    <h2>Expenses</h2>
+    <ul>
+        {% for e in expenses %}
+        <li>
+            ${{ "%.2f"|format(e.amount) }} — {{ e.category }}
+            <form method="POST" style="display:inline;">
+                <button name="delete" value="{{ loop.index0 }}">Delete</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <h3>Total Spent: ${{ "%.2f"|format(total) }}</h3>
+
+    <!-- Chart -->
+    <h2>Spending by Category</h2>
+    <canvas id="categoryChart" width="400" height="200"></canvas>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const categoryData = JSON.parse('{{ category_totals | safe }}');
+
+        const ctx = document.getElementById('categoryChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(categoryData),
+                datasets: [{
+                    label: 'Spending by Category ($)',
+                    data: Object.values(categoryData),
+                    backgroundColor: 'rgba(52, 152, 219, 0.5)',
+                    borderColor: 'rgba(52, 152, 219, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    </script>
+</body>
+</html>
+
+
