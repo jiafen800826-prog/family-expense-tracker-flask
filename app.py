@@ -1,73 +1,91 @@
-from flask import Flask, render_template, request, redirect
-import os
+from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask_sqlalchemy import SQLAlchemy
 from collections import defaultdict
-import json
 
 app = Flask(__name__)
-EXPENSE_FILE = "expenses.txt"
 
-# Load expenses from file
-def load_expenses():
-    expenses = []
-    if os.path.exists(EXPENSE_FILE):
-        with open(EXPENSE_FILE, "r") as file:
-            for line in file:
-                parts = line.strip().split(",")
-                if len(parts) != 2:
-                    continue
-                amount, category = parts
-                try:
-                    amount = float(amount)
-                except ValueError:
-                    continue
-                expenses.append({"amount": amount, "category": category})
-    return expenses
+# Database config
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///expenses.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Save a new expense
-def save_expense(amount, category):
-    with open(EXPENSE_FILE, "a") as file:
-        file.write(f"{amount},{category}\n")
+db = SQLAlchemy(app)
 
-# Delete an expense by index
-def delete_expense(index):
-    expenses = load_expenses()
-    if 0 <= index < len(expenses):
-        expenses.pop(index)
-    with open(EXPENSE_FILE, "w") as file:
-        for e in expenses:
-            file.write(f"{e['amount']},{e['category']}\n")
+# Model
+class Expense(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    amount = db.Column(db.Float, nullable=False)
+    category = db.Column(db.String(100), nullable=False)
 
-# Main route
+with app.app_context():
+    db.create_all()
+
+# Home page
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
-        if "delete" in request.form:
-            index_to_delete = int(request.form["delete"])
-            delete_expense(index_to_delete)
-        else:
-            amount = request.form["amount"]
-            category = request.form["category"]
-            try:
-                amount = float(amount)
-            except ValueError:
-                return redirect("/")
-            save_expense(amount, category)
-        return redirect("/")
+        new_expense = Expense(
+            amount=float(request.form["amount"]),
+            category=request.form["category"]
+        )
+        db.session.add(new_expense)
+        db.session.commit()
+        return redirect(url_for("index"))
 
-    expenses = load_expenses()
-    total = sum(e["amount"] for e in expenses)
+    expenses = Expense.query.all()
+    total = sum(e.amount for e in expenses)
 
-    # Calculate totals by category for chart
     category_totals = defaultdict(float)
     for e in expenses:
-        category_totals[e["category"]] += e["amount"]
+        category_totals[e.category] += e.amount
 
     return render_template(
         "index.html",
         expenses=expenses,
         total=total,
-        category_totals=json.dumps(category_totals)
+        category_totals=dict(category_totals)
     )
+
+# Update expense (AJAX)
+@app.route("/update/<int:id>", methods=["POST"])
+def update(id):
+    expense = Expense.query.get_or_404(id)
+    data = request.get_json()
+    expense.amount = float(data["amount"])
+    expense.category = data["category"]
+    db.session.commit()
+    return jsonify(success=True)
+
+# Delete one
+@app.route("/delete/<int:id>")
+def delete(id):
+    expense = Expense.query.get_or_404(id)
+    db.session.delete(expense)
+    db.session.commit()
+    return jsonify(success=True)
+
+# Delete all
+@app.route("/delete_all")
+def delete_all():
+    Expense.query.delete()
+    db.session.commit()
+    return jsonify(success=True)
+
+# Chart data
+@app.route("/data")
+def data():
+    expenses = Expense.query.all()
+    total = sum(e.amount for e in expenses)
+
+    category_totals = defaultdict(float)
+    for e in expenses:
+        category_totals[e.category] += e.amount
+
+    return jsonify(
+        total=total,
+        category_totals=category_totals
+    )
+
 
 if __name__ == "__main__":
     app.run(debug=True)
+
