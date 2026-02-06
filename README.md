@@ -1,25 +1,16 @@
-# Family Expense Tracker (Flask)
+### Day 11 Update: Category Totals
+Now the tracker summarizes your expenses by category:
 
-A simple web application built with **Flask** and **SQLite** to track family expenses by category and visualize spending using charts.
+Expenses:
+- $12.50 | Food
+- $800.00 | Rent
 
-## 🚀 Features
-- Add expenses (amount + category)
-- View all expenses in a table
-- Delete individual expenses
-- Bar chart showing spending by category
-- Persistent data with SQLite
+Total spent: $812.50
 
-## 🛠 Tech Stack
-- Python
-- Flask
-- Flask-SQLAlchemy
-- SQLite
-- Chart.js
-- HTML / CSS
+By category:
+Food: $12.50
+Rent: $800.00
 
-## 📦 Installation
-
-```bash
 git clone https://github.com/YOUR_USERNAME/family-expense-tracker-flask.git
 cd family-expense-tracker-flask
 pip install flask flask-sqlalchemy
